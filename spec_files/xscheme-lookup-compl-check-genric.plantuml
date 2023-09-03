@@ -1,0 +1,167 @@
+
+
+@startuml
+autonumber
+
+' define actor image
+sprite $actor [25x48/16] {
+  0000000000010000000000000
+  0000000006CAC910000000000
+  0000000095101292000000000
+  0000000651000119000000000
+  0000000B10000018400000000
+  0000001A10000016600000000
+  0000000B10000017510000000
+  000000083100001A210000000
+  0000000191000176110000000
+  000000003A866A61100000000
+  0000000000466211100000000
+  0003333333334443333310000
+  0088888888888888888892000
+  0821111111111111111118200
+  8311111111111111111111A00
+  A111111111111111111111A20
+  A111111111111111111111A20
+  A111111111111111111111A20
+  A111111111111111111111A20
+  A111111111111111111111A20
+  A111111111111111111111A20
+  A111111111111111111111A20
+  A111111111111111111111A20
+  A111551111111111138111A20
+  A111661111111111139111A20
+  A211661111111111139111A20
+  A211661111111111139111A20
+  A211661111161111139111A20
+  A2116611111A2111139111A20
+  A2116611111A2111139111A20
+  A2116611111A2111139111A20
+  A7669611111A211113A666B20
+  36669611111A211113A666610
+  00016611111A2111139111110
+  00006611111A2111139100000
+  00006611111A2111139100000
+  00006611111A2111139100000
+  00006611111A2111139100000
+  00006611111A2111139100000
+  00006611111A2111139100000
+  00006611111A2111139100000
+  00006611111A2111139100000
+  00006611111A2111139100000
+  00006611111A2111139100000
+  00006966666B7666679100000
+  0000266666666666664100000
+  0000000111111111111100000
+  0000000000000000000000000
+}
+
+' declaring skinparam
+skinparam sequenceMessageAlign center
+skinparam shadowing false
+skinparam defaultFontName Verdana
+skinparam monochrome true
+skinparam SequenceLifeLineBackgroundColor WhiteSmoke
+skinparam SequenceLifeLineBorderColor Black
+skinparam ActorFontStyle Bold
+skinparam ActorFontSize 20
+skinparam ParticipantFontStyle Bold
+skinparam ParticipantFontSize 20
+skinparam ParticipantBackgroundColor WhiteSmoke
+skinparam ArrowColor Black
+
+skinparam actor {
+  Bordercolor none
+  Backgroundcolor none
+  shadowing false
+}
+
+skinparam participant {
+  shadowing true
+}
+
+hide footbox
+
+' declare title
+' title Example process for /parties resource
+
+' Actor Keys:
+' participant - FSP(User's), Switch, Account Lookup and FSP 
+' actor - Payee/Payer(User)
+
+' declare actors
+actor "<$actor>\nUser" as user
+participant "User's\nFSP" as userfsp
+participant "In scheme\nLookup\nservice" as Local_ALS
+participant "Cross-scheme\nAccount Lookup\n(PASS)" as ALS_PASS
+participant "Sub-directories\nLookup" as Sub_ALS
+participant "\nFSP 1" as fsp1
+participant "Per-scheme\nCompliance check\nService" as Compl_Check
+
+' start flow
+user -> userfsp: I would like to pay or receive\nfunds to/from +123456789
+activate userfsp
+userfsp -> userfsp: +123456789 is not\nwithin this system
+userfsp ->> Local_ALS: **Lookup ID 123456789**
+activate Local_ALS
+userfsp <<-- Local_ALS: **HTTP 202** (Accepted)
+
+alt match found
+Local_ALS -> Local_ALS: Association found in cache\nfor +123456789\n
+Local_ALS ->> fsp1: **GET details for 123456789**
+activate fsp1
+Local_ALS <<-- fsp1: **HTTP 202** (Accepted)
+fsp1 -> fsp1: Lookup party information\nfor +123456789
+Local_ALS <<- fsp1: **Present details for 123456789**\n(Party information)
+Local_ALS -->> fsp1: **HTTP 200** (OK)
+deactivate fsp1
+
+else match not found locally
+Local_ALS ->> ALS_PASS: **GET association for 123456789**
+activate ALS_PASS
+Local_ALS <<-- ALS_PASS: **HTTP 202** (Accepted)
+ALS_PASS -> ALS_PASS: Lookup which FSP MSISDN\n+123456789 belongs to.
+loop 1..n
+    ALS_PASS -> Sub_ALS: **GET association for 123456789**
+    ALS_PASS <<-- Sub_ALS: **HTTP 202** (Accepted)
+    Sub_ALS -->> Sub_ALS: Look-up\nlinked schemes
+    ALS_PASS <<- Sub_ALS: **Present mapping for 123456789**\n(FSP 1)
+    ALS_PASS -->> Sub_ALS: **HTTP 200** (OK)
+end
+ALS_PASS -> ALS_PASS: Log audit for +123456789
+
+Local_ALS <<- ALS_PASS: **Present mapping for 123456789**\n(FSP 1)
+Local_ALS -->> ALS_PASS: **HTTP 200** (OK)
+deactivate ALS_PASS
+Local_ALS ->> fsp1: **GET details for 123456789**
+activate fsp1
+Local_ALS <<-- fsp1: **HTTP 202** (Accepted)
+fsp1 -> fsp1: Lookup party information\nfor +123456789
+Local_ALS <<- fsp1: **Present details for 123456789**\n(Party information)
+Local_ALS -->> fsp1: **HTTP 200** (OK)
+deactivate fsp1
+Local_ALS -> Local_ALS: Store association in cache\nfor +123456789\n
+end alt
+Local_ALS -> Local_ALS: Log audit for +123456789
+
+Local_ALS ->> Compl_Check: Compliance check for 123456789
+activate Compl_Check
+Compl_Check ->> Compl_Check: Return compl_check(AML/CFT, PEP, KYC)\nfor 123456789
+Compl_Check ->> ALS_PASS: Return compl_check(AML/CFT, PEP, KYC)\nresult for 123456789
+ALS_PASS ->> ALS_PASS: Log audit compl_check(AML/CFT, PEP, KYC)\nresult for 123456789 & append to message
+ALS_PASS ->> Local_ALS: Return compl_check(AML/CFT, PEP, KYC)\nresult for 123456789\n& encrypted message of tokenized log
+deactivate Compl_Check
+
+alt check positive
+userfsp <<- Local_ALS: **Present details for 123456789**\n(Party information)
+userfsp -->> Local_ALS: **HTTP 200** (OK)
+user <- userfsp: Is "name" correct?
+else check negative
+userfsp <<- Local_ALS: **Error details for 123456789**/error\n(Party information not found\n(something generic) )
+userfsp -->> Local_ALS: **HTTP 200** (OK)
+user <- userfsp: User not found
+end alt
+deactivate Local_ALS
+
+deactivate userfsp
+
+@enduml
