@@ -9,5 +9,4 @@ The demo uses a tool, Mojaloop testing toolkit on a branch specific to the g20-t
 # Sequence diagram
 
 
-The sequence diagram shows a reference usage of a compliance check service (FRMS.IO) and a lookup service to do address / identifier / proxy resolution.
-./spec_files/xscheme-lookup-compl-check-genric.svg
+The [sequence diagram](spec_files/xscheme-lookup-compl-check-genric.svg) shows a reference usage of a compliance check service (FRMS.IO) and a lookup service to do address / identifier / proxy resolution.
